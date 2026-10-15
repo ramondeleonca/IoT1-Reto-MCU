@@ -4,6 +4,7 @@
 #include <esp_now.h>
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
+#include <ESP32Servo.h>
 
 // #define SENSOR_1_ONLY
 
@@ -27,15 +28,24 @@ constexpr uint16_t rangePeriodMs = 20;
 constexpr uint32_t rangeBudgetUs = 20000;
 constexpr float sensorDistanceMM = 1.0 /* inch */ * 2.54 /* to cm */ * 10 /* to mm */;
 constexpr float thresholdMM = 90.0f;
-constexpr float thresholdVelocityMMperS = 380.0f; // ! THIS IS THE IMPORTANT PARAMETER, BASICALLY THE SENSITIVITY
+constexpr float thresholdVelocityMMperS = 450.0f; // ! THIS IS THE IMPORTANT PARAMETER, BASICALLY THE SENSITIVITY
 constexpr long resetTime = 2000;
 constexpr long triggerWindow = 500;
 
 volatile float objectVelocityMMperS;
+constexpr float printVelocityConversionFactor = 0.0035997120230381566;
+const String printVelocityUnit = "KM/h";
 bool active = false;
 unsigned long activeSince = 0;
 bool sensor1WasTriggered = false;
 bool sensor2WasTriggered = false;
+
+constexpr uint8_t SERVO_PIN = 13;
+Servo servo;
+enum SERVO_ANGLE {
+    ACTIVE = 90,
+    INACTIVE = 0
+};
 
 bool updateDistanceMM(Adafruit_VL53L0X &lox, float &distanceMM) {
     if (!lox.isRangeComplete()) return false;
@@ -63,7 +73,15 @@ void setup() {
     pinMode(lox2xshut, OUTPUT);
     digitalWrite(lox2xshut, LOW);
 
+    // Print MAC address to Serial
+    Serial.print("ESP32 MAC Address: ");
+    Serial.println(WiFi.macAddress());
+
     Wire.begin();
+
+    ESP32PWM::allocateTimer(0);
+    servo.attach(SERVO_PIN);
+    servo.write(0);
 
     digitalWrite(lox1xshut, HIGH);
     delay(10);
@@ -97,33 +115,34 @@ void loop() {
         || lox2Updated
         #endif
     ) {
-        Serial.print(lox1Dist);
-        Serial.print("mm");
+        // Serial.print(lox1Dist);
+        // Serial.print("mm");
 
-        Serial.print(", ");
+        // Serial.print(", ");
 
-        #ifndef SENSOR_1_ONLY
-        Serial.print(lox2Dist);
-        Serial.print("mm");
-        #endif
-        Serial.println();
+        // #ifndef SENSOR_1_ONLY
+        // Serial.print(lox2Dist);
+        // Serial.print("mm");
+        // #endif
+        // Serial.println();
     }
     
     if (active && millis() - activeSince >= resetTime) {
         active = false;
+        servo.write(SERVO_ANGLE::INACTIVE);
         digitalWrite(LED_BUILTIN, LOW);
         sensor1Time = 0;
         #ifndef SENSOR_1_ONLY
         sensor2Time = 0;
         #endif
-        Serial.println("Signal no longer active");
+        Serial.println("Tope bajando...");
     }
 
     if (lox1Updated) {
         const bool sensor1Triggered = lox1Dist > 0 && lox1Dist <= thresholdMM;
         if (sensor1Triggered && !sensor1WasTriggered) {
             sensor1Time = micros();
-            Serial.println("Sensor 1 triggered");
+            Serial.println("Pasó por el sensor 1");
         }
         sensor1WasTriggered = sensor1Triggered;
     }
@@ -133,11 +152,12 @@ void loop() {
         const bool sensor2Triggered = lox2Dist > 0 && lox2Dist <= thresholdMM;
         if (sensor2Triggered && !sensor2WasTriggered) {
             sensor2Time = micros();
-            Serial.println("Sensor 2 triggered");
+            Serial.println("Pasó por el sensor 2");
         }
         sensor2WasTriggered = sensor2Triggered;
     }
 
+    // Logic modified by gpt-6-luna
     const unsigned long triggerWindowUs = triggerWindow * 1000UL;
     if (sensor1Time != 0 && sensor2Time != 0) {
         const long deltaTimeUs = static_cast<long>(sensor2Time - sensor1Time);
@@ -147,10 +167,15 @@ void loop() {
             objectVelocityMMperS = sensorDistanceMM * 1000000.0f / elapsedUs;
             if (objectVelocityMMperS > thresholdVelocityMMperS) {
                 active = true;
+                servo.write(SERVO_ANGLE::ACTIVE);
                 activeSince = millis();
                 digitalWrite(LED_BUILTIN, HIGH);
-                Serial.printf("Both sensors triggered in window: %.2f mm/s; signal active\n", objectVelocityMMperS);
+                Serial.println("SUBIENDO TOPE");
             }
+            Serial.print("Vehículo a:");
+            Serial.printf("%.2f", objectVelocityMMperS * printVelocityConversionFactor);
+            Serial.print(printVelocityUnit);
+            Serial.println();
             sensor1Time = 0;
             sensor2Time = 0;
         } else if (deltaTimeUs > 0) {

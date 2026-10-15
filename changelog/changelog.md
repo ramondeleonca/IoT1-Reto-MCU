@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-10-12 01:06:31] Document activation flow
+- **Prompt:** "based on the activation logic, create a flowchart in mermaid format and write it to logic-flowchart in the project root, also add the task to edit it when appropriate to the agents.md"
+- **Summary:** Added a root Mermaid flowchart for sensor activation and a maintenance rule in [AGENTS.MD](../../AGENTS.MD).
+
 ## [2026-10-12 00:21:55] Switch sensors to continuous ranging
 - **Prompt:** "let's do that, but 40ms still feels slow"
 - **Summary:** Use 20 ms continuous ranging and consume completed measurements without blocking in [main.hpp](../src/impl/main.hpp).
