@@ -109,23 +109,6 @@ void loop() {
     #ifndef SENSOR_1_ONLY
     const bool lox2Updated = updateDistanceMM(lox2, lox2Dist);
     #endif
-
-    if (lox1Updated
-        #ifndef SENSOR_1_ONLY
-        || lox2Updated
-        #endif
-    ) {
-        // Serial.print(lox1Dist);
-        // Serial.print("mm");
-
-        // Serial.print(", ");
-
-        // #ifndef SENSOR_1_ONLY
-        // Serial.print(lox2Dist);
-        // Serial.print("mm");
-        // #endif
-        // Serial.println();
-    }
     
     if (active && millis() - activeSince >= resetTime) {
         active = false;
