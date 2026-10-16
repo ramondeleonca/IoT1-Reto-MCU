@@ -7,6 +7,7 @@
 #include <ESP32Servo.h>
 
 // #define SENSOR_1_ONLY
+#define DEBUG
 
 constexpr uint8_t lox1xshut = 18;
 constexpr uint8_t lox1addr = 0x30;
@@ -27,9 +28,9 @@ float lox2Dist = -1;
 constexpr uint16_t rangePeriodMs = 20;
 constexpr uint32_t rangeBudgetUs = 20000;
 constexpr float sensorDistanceMM = 1.0 /* inch */ * 2.54 /* to cm */ * 10 /* to mm */;
-constexpr float thresholdMM = 90.0f;
-constexpr float thresholdVelocityMMperS = 450.0f; // ! THIS IS THE IMPORTANT PARAMETER, BASICALLY THE SENSITIVITY
-constexpr long resetTime = 2000;
+constexpr float thresholdMM = 100.0f;
+constexpr float thresholdVelocityMMperS = 480.0f; // ! THIS IS THE IMPORTANT PARAMETER, BASICALLY THE SENSITIVITY
+constexpr long resetTime = 3000;
 constexpr long triggerWindow = 500;
 
 volatile float objectVelocityMMperS;
@@ -108,6 +109,19 @@ void loop() {
     const bool lox1Updated = updateDistanceMM(lox1, lox1Dist);
     #ifndef SENSOR_1_ONLY
     const bool lox2Updated = updateDistanceMM(lox2, lox2Dist);
+    #endif
+
+    #ifdef DEBUG
+    Serial.print(lox1Dist);
+    Serial.print("mm");
+
+    Serial.print(", ");
+
+    #ifndef SENSOR_1_ONLY
+    Serial.print(lox2Dist);
+    Serial.print("mm");
+    #endif
+    Serial.println();
     #endif
     
     if (active && millis() - activeSince >= resetTime) {
